@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './OrderDetails.css';
 
 function OrderDetails({ orderId, onClose, orderService }) {
@@ -8,9 +8,11 @@ function OrderDetails({ orderId, onClose, orderService }) {
 
   useEffect(() => {
     fetchOrderDetails();
-  }, [orderId]);
+  }, [fetchOrderDetails]);
 
-  const fetchOrderDetails = async () => {
+  //Make the function identity stable
+  const fetchOrderDetails = useCallback(async () => {
+    if(!orderId) return;
     try {
       setLoading(true);
       const data = await orderService.getOrderById(orderId);
@@ -21,7 +23,7 @@ function OrderDetails({ orderId, onClose, orderService }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [orderId, orderService]);
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleString();
