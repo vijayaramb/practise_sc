@@ -6,10 +6,6 @@ function OrderDetails({ orderId, onClose, orderService }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    fetchOrderDetails();
-  }, [fetchOrderDetails]);
-
   //Make the function identity stable
   const fetchOrderDetails = useCallback(async () => {
     if(!orderId) return;
@@ -25,6 +21,10 @@ function OrderDetails({ orderId, onClose, orderService }) {
     }
   }, [orderId, orderService]);
 
+  useEffect(() => {
+    fetchOrderDetails();
+  }, [fetchOrderDetails]);
+  
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleString();
   };
