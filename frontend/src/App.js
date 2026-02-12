@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './App.css';
 import CustomerAuth from './components/CustomerAuth';
 import CreateOrder from './components/CreateOrder';
@@ -13,6 +13,21 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState({ message: '', type: '' });
 
+  
+  // Keep a ref to the polling interval so we can clear it safely
+  const intervalRef = useRef(null);
+
+  //stable notification helper
+  const showNotification = useCallback((message, type) => {
+    setNotification({ message, type });
+    const timeout = setTimeout(() => {
+      setNotification({ message: '', type: '' });
+    }, 3000);
+    // Optional: return a cleanup if you ever need to cancel it
+    return () => clearTimeout(timeout);
+  }, []);
+  
+  // On first mount, restore customer from localStorage
   useEffect(() => {
     // Check if customer is logged in from localStorage
     const savedCustomer = localStorage.getItem('customer');
@@ -21,16 +36,8 @@ function App() {
     }
   }, []);
 
-  useEffect(() => {
-    if (customer) {
-      fetchOrders();
-      // Refresh orders every 30 seconds to see auto-updates
-      const interval = setInterval(fetchOrders, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [customer]);
-
-  const fetchOrders = async () => {
+  //stable fetcher
+  const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       const data = await orderService.getOrders();
@@ -40,7 +47,30 @@ function App() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showNotification]);  
+
+  useEffect(() => {
+    // Clear any previous interval when customer changes or on unmount
+    if(intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+
+    if(!customer) return;
+
+    //Initial fetch
+    fetchOrders();
+
+    //Pool every 30s
+    intervalRef.current = setInterval(fetchOrders, 30000);
+
+    return () => {
+      if(intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [customer, fetchOrders]);
 
   const handleLogin = async (data, isRegistering) => {
     try {
@@ -98,14 +128,7 @@ function App() {
     } catch (error) {
       showNotification('Failed to update order status', 'error');
     }
-  };
-
-  const showNotification = (message, type) => {
-    setNotification({ message, type });
-    setTimeout(() => {
-      setNotification({ message: '', type: '' });
-    }, 3000);
-  };
+  };  
 
   if (!customer) {
     return <CustomerAuth onLogin={handleLogin} />;
